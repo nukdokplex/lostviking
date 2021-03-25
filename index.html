@@ -10,7 +10,320 @@
         }
     </style>
     <script type="text/javascript" src="js/jquery.js"></script>
-    <script type="text/javascript" src="js/game.js"></script>
+    <script type="text/javascript">
+        var canvas
+        var gl
+        function InitializeGL(cnv){
+            canvas = cnv
+            prepareCanvas()
+            gl = canvas.getContext("2d")
+
+            if (!gl){
+                alert("Failed initializing 2D")
+            }
+
+
+        }
+
+        class Collision {
+            radius
+            gameObject
+            constructor(radius, gameObject) {
+                this.radius = radius
+                this.gameObject = gameObject
+            }
+
+            collide(gameObject){
+                return Math.sqrt((this.gameObject.position.x+gameObject.position.x)^2+(this.gameObject.position.y-gameObject.position.y)^2) > this.radius+gameObject.collision.radius;
+            }
+        }
+
+        class Vector2 {
+            x
+            y
+
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+        }
+
+        class Vector3 extends Vector2{
+            z
+
+            constructor(x, y, z) {
+                super(x, y);
+                this.z = z
+            }
+        }
+
+        class GameObject{
+            position
+            collision
+            constructor() {
+
+            }
+
+            setCollision(collision){
+                this.collision = collision
+            }
+
+            render(){
+
+            }
+        }
+
+        class Game {
+            gl
+            currentLevel
+
+            constructor(gl) {
+                this.gl = gl
+            }
+
+            navigate(level){
+                this.currentLevel = level
+            }
+
+            render (){
+                this.currentLevel.render()
+            }
+
+            move(){
+
+                this.currentLevel.move();
+                //console.log(this.currentLevel)
+            }
+
+            clearCanvas(){
+                gl.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        class Bullet extends GameObject {
+            movementVector
+
+            constructor(damage) {
+                super();
+                damage = 50;
+            }
+        }
+
+        class Gun extends GameObject {
+
+            isFiring = false
+            ellapsed
+            constructor(defaultSpeed, speed, position, player) {
+                super(defaultSpeed)
+
+            }
+
+            setIsFiring(isFiring){
+                this.isFiring = isFiring
+            }
+
+            fire(){
+                
+            }
+            
+        }
+
+        class Subject extends GameObject {
+            defaultSpeed
+            movementVector
+            health
+            damage
+            constructor(defaultSpeed) {
+                super();
+                this.defaultSpeed = defaultSpeed
+            }
+
+            render() {
+                super.render();
+
+            }
+
+            setMovement(movementVector){
+                this.movementVector = movementVector
+            }
+
+            move(){
+                let newPositionX = this.position.x + this.movementVector.x*this.defaultSpeed;
+                let newPositionY = this.position.y + this.movementVector.y*this.defaultSpeed;
+
+
+                if (canvas.width > newPositionX && +newPositionX > 0){
+                    this.position.x = newPositionX
+                }
+                if (canvas.height > newPositionY && +newPositionY > 0){
+                    this.position.y = newPositionY
+                }
+
+            }
+        }
+
+        class Enemy extends Subject {
+            constructor() {
+                super();
+            }
+        }
+
+        class Player extends Subject {
+
+            gun
+
+            constructor(defaultSpeed) {
+                super(defaultSpeed);
+                gun = new Gun();
+            }
+
+            render() {
+                super.render()
+                gl.fillStyle = "rgba( 0, 200, 100, 1 )";
+                gl.beginPath()
+                gl.moveTo(this.position.x-35, this.position.y + 33)
+                gl.lineTo(this.position.x+35, this.position.y + 33)
+                gl.lineTo(this.position.x, this.position.y - 33)
+                gl.closePath()
+                gl.fill()
+            }
+
+            setIsFiring(isFiring){
+                this.gun.isFiring = isFiring
+            }
+
+            move(){
+                super.move()
+                this.gun.fire()
+            }
+        }
+
+
+
+        class Level{
+            player
+            enemies
+            bullets
+            
+            constructor() {
+                this.player = new Player(5);
+                this.player.position = new Vector2(canvas.width / 2, canvas.height - 150)
+                this.bullets = []
+                this.enemies = []
+            }
+
+            render(){
+                this.player.render()
+                
+                this.bullets.forEach(function (bullet) {
+                    bullet.render()
+                })
+            }
+
+            move(){
+                this.player.move()
+            }
+        }
+
+        class Menu extends Level {
+            constructor() {
+                super();
+            }
+
+            render(){
+
+            }
+        }
+
+        class MainMenu extends Menu {
+            constructor() {
+                super();
+            }
+
+            render() {
+                //super.render();
+
+            }
+        }
+
+        function prepareCanvas() {
+            canvas.height = window.innerHeight
+            canvas.width = canvas.height / 16 * 9
+        }
+
+        function startGame() {
+            console.log('starting game')
+            var game = new Game()
+
+            
+            game.navigate(new Level())
+
+
+            var movements = {
+                "ArrowLeft": {"x": -1, "y": 0},
+                "ArrowRight": {"x": 1, "y": 0},
+                "ArrowUp": {"x": 0, "y": -1},
+                "ArrowDown": {"x": 0, "y": 1},
+                "u": {"x": 0, "y": 0}
+            }
+
+            var pressableKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "u"]
+
+            var pressedKeys = []
+
+            function animate(){
+                game.clearCanvas()
+                if (!game.currentLevel.isPrototypeOf(MainMenu)){
+                    let playerMovementVector = new Vector3(0,0,1)
+
+                    playerMovementVector.x = 0
+                    playerMovementVector.y = 0
+                    pressedKeys.forEach(function (pressedKey){
+                        playerMovementVector.x = playerMovementVector.x + movements[pressedKey].x
+                        playerMovementVector.y = playerMovementVector.y + movements[pressedKey].y
+                    })
+
+                    if (pressedKeys.includes("u")){
+                        //console.log("sdfsdf");
+                        game.currentLevel.player.isFiring = true
+                    }
+                    else if (!pressedKeys.includes("u")){
+                        game.currentLevel.player.isFiring = false
+                    }
+
+                    game.currentLevel.player.setMovement(playerMovementVector)
+                }
+                game.render()
+            }
+
+            setInterval(animate, 10)
+            setInterval(() => {
+                game.move()
+            }, 10);
+
+            window.addEventListener("keydown", function (e){
+                
+                if ((pressableKeys.includes(e.key)) && !(pressedKeys.includes(e.key))){
+                    pressedKeys.push(e.key)
+                }
+
+
+            },false)
+
+            window.addEventListener("keyup", function (e){
+                if ((pressableKeys.includes(e.key)) && (pressedKeys.includes(e.key))){
+
+                    const index = pressedKeys.indexOf(e.key)
+
+                        pressedKeys.splice(index, 1)
+
+
+                }
+            },false)
+        }
+
+
+    </script>
     <script type="text/javascript" src="js/index.js"></script>
 </head>
 <body>
